@@ -337,7 +337,7 @@ static char ngx_http_error_507_page[] =
 ;
 
 
-static ngx_str_t ngx_http_error_pages[] = {
+static ngx_str_t ngx_http_error_pages_en[] = {
 
     ngx_null_string,                     /* 201, 204 */
 
@@ -408,6 +408,361 @@ static ngx_str_t ngx_http_error_pages[] = {
     ngx_string(ngx_http_error_507_page)
 
 #define NGX_HTTP_LAST_5XX  508
+
+};
+
+
+static char ngx_http_error_301_page_ru[] =
+"<html>" CRLF
+"<head><title>301 Перемещено Навсегда</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>301 Перемещено Навсегда</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_302_page_ru[] =
+"<html>" CRLF
+"<head><title>302 Найдено</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>302 Найдено</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_303_page_ru[] =
+"<html>" CRLF
+"<head><title>303 Смотрите Другое</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>303 Смотрите Другое</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_307_page_ru[] =
+"<html>" CRLF
+"<head><title>307 Перенаправлено Временно</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>307 Перенаправлено Временно</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_308_page_ru[] =
+"<html>" CRLF
+"<head><title>308 Перенаправлено Навсегда</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>308 Перенаправлено Навсегда</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_400_page_ru[] =
+"<html>" CRLF
+"<head><title>400 Неверный Запрос</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>400 Неверный Запрос</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_401_page_ru[] =
+"<html>" CRLF
+"<head><title>401 Требуется Авторизация</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>401 Требуется Авторизация</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_402_page_ru[] =
+"<html>" CRLF
+"<head><title>402 Требуется Оплата</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>402 Требуется Оплата</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_403_page_ru[] =
+"<html>" CRLF
+"<head><title>403 Запрещено</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>403 Запрещено</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_404_page_ru[] =
+"<html>" CRLF
+"<head><title>404 Не Найдено</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>404 Не Найдено</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_405_page_ru[] =
+"<html>" CRLF
+"<head><title>405 Не Разрешено</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>405 Не Разрешено</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_406_page_ru[] =
+"<html>" CRLF
+"<head><title>406 Не Приемлемо</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>406 Не Приемлемо</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_408_page_ru[] =
+"<html>" CRLF
+"<head><title>408 Таймаут Запроса</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>408 Таймаут Запроса</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_409_page_ru[] =
+"<html>" CRLF
+"<head><title>409 Конфликт</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>409 Конфликт</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_410_page_ru[] =
+"<html>" CRLF
+"<head><title>410 Удалено</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>410 Удалено</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_411_page_ru[] =
+"<html>" CRLF
+"<head><title>411 Требуется Длина</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>411 Требуется Длина</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_412_page_ru[] =
+"<html>" CRLF
+"<head><title>412 Предварительное Условие Не Выполнено</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>412 Предварительное Условие Не Выполнено</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_413_page_ru[] =
+"<html>" CRLF
+"<head><title>413 Тело Запроса Слишком Большое</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>413 Тело Запроса Слишком Большое</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_414_page_ru[] =
+"<html>" CRLF
+"<head><title>414 Адрес Запроса Слишком Большой</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>414 Адрес Запроса Слишком Большой</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_415_page_ru[] =
+"<html>" CRLF
+"<head><title>415 Неподдерживаемый Тип Медиа</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>415 Неподдерживаемый Тип Медиа</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_416_page_ru[] =
+"<html>" CRLF
+"<head><title>416 Запрошенный Диапазон Не Удовлетворим</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>416 Запрошенный Диапазон Не Удовлетворим</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_421_page_ru[] =
+"<html>" CRLF
+"<head><title>421 Неправильно Адресованный Запрос</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>421 Неправильно Адресованный Запрос</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_429_page_ru[] =
+"<html>" CRLF
+"<head><title>429 Слишком Много Запросов</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>429 Слишком Много Запросов</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_494_page_ru[] =
+"<html>" CRLF
+"<head><title>400 Размер Заголовка Запроса Или Куки Слишком Велик</title></head>"
+CRLF
+"<body>" CRLF
+"<center><h1>400 Неверный Запрос</h1></center>" CRLF
+"<center>Размер Заголовка Запроса Или Куки Слишком Велик</center>" CRLF
+;
+
+
+static char ngx_http_error_495_page_ru[] =
+"<html>" CRLF
+"<head><title>400 Ошибка Сертификата SSL</title></head>"
+CRLF
+"<body>" CRLF
+"<center><h1>400 Неверный Запрос</h1></center>" CRLF
+"<center>Ошибка Сертификата SSL</center>" CRLF
+;
+
+
+static char ngx_http_error_496_page_ru[] =
+"<html>" CRLF
+"<head><title>400 Требуеый Сертификат SSL Не Был Послан</title></head>"
+CRLF
+"<body>" CRLF
+"<center><h1>400 Неверный Запрос</h1></center>" CRLF
+"<center>Требуеый Сертификат SSL Не Был Послан</center>" CRLF
+;
+
+
+static char ngx_http_error_497_page_ru[] =
+"<html>" CRLF
+"<head><title>400 Простой HTTP Запрос Был Отправлен На Порт HTTPS</title></head>"
+CRLF
+"<body>" CRLF
+"<center><h1>400 Неверный Запрос</h1></center>" CRLF
+"<center>Простой HTTP Запрос Был Отправлен На Порт HTTPS</center>" CRLF
+;
+
+
+static char ngx_http_error_500_page_ru[] =
+"<html>" CRLF
+"<head><title>500 Внутренняя Ошибка Сервера</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>500 Внутренняя Ошибка Сервера</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_501_page_ru[] =
+"<html>" CRLF
+"<head><title>501 Не Реализовано</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>501 Не Реализовано</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_502_page_ru[] =
+"<html>" CRLF
+"<head><title>502 Плохой Шлюз</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>502 Плохой Шлюз</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_503_page_ru[] =
+"<html>" CRLF
+"<head><title>503 Сервис Временно Недоступен</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>503 Сервис Временно Недоступен</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_504_page_ru[] =
+"<html>" CRLF
+"<head><title>504 Таймаут Шлюза</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>504 Таймаут Шлюза</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_505_page_ru[] =
+"<html>" CRLF
+"<head><title>505 Версия HTTP Не Поддерживается</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>505 Версия HTTP Не Поддерживается</h1></center>" CRLF
+;
+
+
+static char ngx_http_error_507_page_ru[] =
+"<html>" CRLF
+"<head><title>507 Недостаточно Места</title></head>" CRLF
+"<body>" CRLF
+"<center><h1>507 Недостаточно Места</h1></center>" CRLF
+;
+
+
+static ngx_str_t ngx_http_error_pages_ru[] = {
+
+    ngx_null_string,                     /* 201, 204 */
+
+//#define NGX_HTTP_LAST_2XX  202
+//#define NGX_HTTP_OFF_3XX   (NGX_HTTP_LAST_2XX - 201)
+
+    /* ngx_null_string, */               /* 300 */
+    ngx_string(ngx_http_error_301_page_ru),
+    ngx_string(ngx_http_error_302_page_ru),
+    ngx_string(ngx_http_error_303_page_ru),
+    ngx_null_string,                     /* 304 */
+    ngx_null_string,                     /* 305 */
+    ngx_null_string,                     /* 306 */
+    ngx_string(ngx_http_error_307_page_ru),
+    ngx_string(ngx_http_error_308_page_ru),
+
+//#define NGX_HTTP_LAST_3XX  309
+//#define NGX_HTTP_OFF_4XX   (NGX_HTTP_LAST_3XX - 301 + NGX_HTTP_OFF_3XX)
+
+    ngx_string(ngx_http_error_400_page_ru),
+    ngx_string(ngx_http_error_401_page_ru),
+    ngx_string(ngx_http_error_402_page_ru),
+    ngx_string(ngx_http_error_403_page_ru),
+    ngx_string(ngx_http_error_404_page_ru),
+    ngx_string(ngx_http_error_405_page_ru),
+    ngx_string(ngx_http_error_406_page_ru),
+    ngx_null_string,                     /* 407 */
+    ngx_string(ngx_http_error_408_page_ru),
+    ngx_string(ngx_http_error_409_page_ru),
+    ngx_string(ngx_http_error_410_page_ru),
+    ngx_string(ngx_http_error_411_page_ru),
+    ngx_string(ngx_http_error_412_page_ru),
+    ngx_string(ngx_http_error_413_page_ru),
+    ngx_string(ngx_http_error_414_page_ru),
+    ngx_string(ngx_http_error_415_page_ru),
+    ngx_string(ngx_http_error_416_page_ru),
+    ngx_null_string,                     /* 417 */
+    ngx_null_string,                     /* 418 */
+    ngx_null_string,                     /* 419 */
+    ngx_null_string,                     /* 420 */
+    ngx_string(ngx_http_error_421_page_ru),
+    ngx_null_string,                     /* 422 */
+    ngx_null_string,                     /* 423 */
+    ngx_null_string,                     /* 424 */
+    ngx_null_string,                     /* 425 */
+    ngx_null_string,                     /* 426 */
+    ngx_null_string,                     /* 427 */
+    ngx_null_string,                     /* 428 */
+    ngx_string(ngx_http_error_429_page_ru),
+
+//#define NGX_HTTP_LAST_4XX  430
+//#define NGX_HTTP_OFF_5XX   (NGX_HTTP_LAST_4XX - 400 + NGX_HTTP_OFF_4XX)
+
+    ngx_string(ngx_http_error_494_page_ru), /* 494, request header too large */
+    ngx_string(ngx_http_error_495_page_ru), /* 495, https certificate error */
+    ngx_string(ngx_http_error_496_page_ru), /* 496, https no certificate */
+    ngx_string(ngx_http_error_497_page_ru), /* 497, http to https */
+    ngx_string(ngx_http_error_404_page_ru), /* 498, canceled */
+    ngx_null_string,                     /* 499, client has closed connection */
+
+    ngx_string(ngx_http_error_500_page_ru),
+    ngx_string(ngx_http_error_501_page_ru),
+    ngx_string(ngx_http_error_502_page_ru),
+    ngx_string(ngx_http_error_503_page_ru),
+    ngx_string(ngx_http_error_504_page_ru),
+    ngx_string(ngx_http_error_505_page_ru),
+    ngx_null_string,                     /* 506 */
+    ngx_string(ngx_http_error_507_page_ru)
+
+//#define NGX_HTTP_LAST_5XX  508
 
 };
 
@@ -674,6 +1029,7 @@ ngx_http_send_special_response(ngx_http_request_t *r,
     ngx_buf_t    *b;
     ngx_uint_t    msie_padding;
     ngx_chain_t   out[3];
+    ngx_str_t    *ngx_http_error_pages;
 
     if (clcf->server_tokens == NGX_HTTP_SERVER_TOKENS_ON) {
         len = sizeof(ngx_http_error_full_tail) - 1;
@@ -689,6 +1045,12 @@ ngx_http_send_special_response(ngx_http_request_t *r,
     }
 
     msie_padding = 0;
+
+    ngx_http_error_pages = ngx_http_error_pages_en;
+
+    if (r->headers_in.accept_language && r->headers_in.accept_language->value.data && !ngx_strncasecmp(r->headers_in.accept_language->value.data, (u_char *)"ru", sizeof("ru") - 1)) {
+        ngx_http_error_pages = ngx_http_error_pages_ru;
+    }
 
     if (ngx_http_error_pages[err].len) {
         r->headers_out.content_length_n = ngx_http_error_pages[err].len + len;
