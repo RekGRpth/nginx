@@ -2948,6 +2948,7 @@ ngx_ssl_shutdown(ngx_connection_t *c)
 
         SSL_free(c->ssl->connection);
         c->ssl = NULL;
+        c->recv = ngx_recv;
 
         return NGX_OK;
     }
@@ -2993,6 +2994,7 @@ ngx_ssl_shutdown(ngx_connection_t *c)
         if (n == 1) {
             SSL_free(c->ssl->connection);
             c->ssl = NULL;
+            c->recv = ngx_recv;
 
             return NGX_OK;
         }
@@ -3035,6 +3037,7 @@ ngx_ssl_shutdown(ngx_connection_t *c)
         if (sslerr == SSL_ERROR_ZERO_RETURN || ERR_peek_error() == 0) {
             SSL_free(c->ssl->connection);
             c->ssl = NULL;
+            c->recv = ngx_recv;
 
             return NGX_OK;
         }
@@ -3045,6 +3048,7 @@ ngx_ssl_shutdown(ngx_connection_t *c)
 
         SSL_free(c->ssl->connection);
         c->ssl = NULL;
+        c->recv = ngx_recv;
 
         return NGX_ERROR;
     }
