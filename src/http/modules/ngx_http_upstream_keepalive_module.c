@@ -288,6 +288,7 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
     }
 
 #if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    kp->request = r;
     ngx_queue_init(&kp->queue);
     ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
     if (!cln) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pool_cleanup_add"); return NGX_ERROR; }
@@ -298,10 +299,6 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
     if (kcf->original_init_peer(r, us) != NGX_OK) {
         return NGX_ERROR;
     }
-
-#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
-    kp->request = r;
-#endif
 
     kp->conf = kcf;
     kp->upstream = r->upstream;
