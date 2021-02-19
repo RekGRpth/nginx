@@ -381,6 +381,7 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
 
     ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
     if (!ngx_queue_empty(&kcf->free)) {
+        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pc->log, 0, "free is not empty");
 
 #if (T_NGX_HTTP_DYNAMIC_RESOLVE)
     } else if (kcf->kp.max) {
@@ -400,7 +401,10 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
         }
 #endif
 
-    } else if (kcf->reject) return NGX_BUSY;
+    } else if (kcf->reject) {
+        ngx_log_error(NGX_LOG_WARN, pc->log, 0, "reject");
+        return NGX_BUSY;
+    }
 
     return NGX_OK;
 
