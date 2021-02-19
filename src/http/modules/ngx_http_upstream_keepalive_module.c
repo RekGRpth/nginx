@@ -14,6 +14,7 @@ typedef struct {
     ngx_uint_t                         max_cached;
     ngx_uint_t                         requests;
     ngx_msec_t                         timeout;
+    ngx_flag_t                         reject;
 
     ngx_queue_t                        cache;
     ngx_queue_t                        free;
@@ -80,7 +81,7 @@ static char *ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd,
 static ngx_command_t  ngx_http_upstream_keepalive_commands[] = {
 
     { ngx_string("keepalive"),
-      NGX_HTTP_UPS_CONF|NGX_CONF_TAKE1,
+      NGX_HTTP_UPS_CONF|NGX_CONF_TAKE12|NGX_CONF_TAKE3|NGX_CONF_TAKE4,
       ngx_http_upstream_keepalive,
       NGX_HTTP_SRV_CONF_OFFSET,
       0,
@@ -265,6 +266,8 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
             goto found;
         }
     }
+
+    if (kp->conf->reject) return NGX_BUSY;
 
     return NGX_OK;
 
@@ -547,6 +550,43 @@ ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     }
 
     kcf->max_cached = n;
+
+    ngx_str_t *args = cf->args->elts;
+    for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
+        if (args[i].len > sizeof("overflow=") - 1 && !ngx_strncasecmp(args[i].data, (u_char *)"overflow=", sizeof("overflow=") - 1)) {
+            args[i].len = args[i].len - (sizeof("overflow=") - 1);
+            args[i].data = &args[i].data[sizeof("overflow=") - 1];
+            static const ngx_conf_enum_t e[] = {
+                { ngx_string("ignore"), 0 },
+                { ngx_string("reject"), 1 },
+                { ngx_null_string, 0 }
+            };
+            ngx_uint_t j;
+            for (j = 0; e[j].name.len; j++) if (e[j].name.len == args[i].len && !ngx_strncasecmp(e[j].name.data, args[i].data, args[i].len)) { kcf->reject = e[j].value; break; }
+            if (!e[j].name.len) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"overflow\" value \"%V\" must be \"ignore\" or \"reject\"", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            continue;
+        }
+        if (args[i].len > sizeof("timeout=") - 1 && !ngx_strncasecmp(args[i].data, (u_char *)"timeout=", sizeof("timeout=") - 1)) {
+            args[i].len = args[i].len - (sizeof("timeout=") - 1);
+            args[i].data = &args[i].data[sizeof("timeout=") - 1];
+            ngx_int_t n = ngx_parse_time(&args[i], 0);
+            if (n == NGX_ERROR) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"timeout\" value \"%V\" must be time", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            if (n <= 0) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"timeout\" value \"%V\" must be positive", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            kcf->timeout = (ngx_msec_t)n;
+            continue;
+        }
+        if (args[i].len > sizeof("requests=") - 1 && !ngx_strncasecmp(args[i].data, (u_char *)"requests=", sizeof("requests=") - 1)) {
+            args[i].len = args[i].len - (sizeof("requests=") - 1);
+            args[i].data = &args[i].data[sizeof("requests=") - 1];
+            ngx_int_t n = ngx_atoi(args[i].data, args[i].len);
+            if (n == NGX_ERROR) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"requests\" value \"%V\" must be number", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            if (n <= 0) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"requests\" value \"%V\" must be positive", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            kcf->requests = (ngx_uint_t)n;
+            continue;
+        }
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: invalid additional parameter \"%V\"", &cmd->name, &args[i]);
+        return NGX_CONF_ERROR;
+    }
 
     /* init upstream handler */
 
