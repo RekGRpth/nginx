@@ -244,6 +244,7 @@ ngx_http_upstream_init_keepalive(ngx_conf_t *cf,
     }
 
 #if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    ngx_queue_init(&kcf->kp.queue);
     if (!kcf->kp.max) return NGX_OK;
     ngx_conf_init_msec_value(kcf->kp.timeout, 60 * 1000);
 #endif
