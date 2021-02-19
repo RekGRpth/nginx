@@ -22,6 +22,16 @@ typedef struct {
     ngx_http_upstream_init_pt          original_init_upstream;
     ngx_http_upstream_init_peer_pt     original_init_peer;
 
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    struct {
+        ngx_flag_t reject;
+        ngx_msec_t timeout;
+        ngx_queue_t queue;
+        ngx_uint_t max;
+        ngx_uint_t size;
+    } kp;
+#endif
+
 } ngx_http_upstream_keepalive_srv_conf_t;
 
 
@@ -52,6 +62,12 @@ typedef struct {
     ngx_event_save_peer_session_pt     original_save_session;
 #endif
 
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    ngx_http_request_t *request;
+    ngx_event_t timeout;
+    ngx_queue_t queue;
+#endif
+
 } ngx_http_upstream_keepalive_peer_data_t;
 
 
@@ -78,6 +94,47 @@ static char *ngx_http_upstream_keepalive(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 
 
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+static char *ngx_http_upstream_keepalive_queue_conf(ngx_conf_t *cf, ngx_command_t *cmd, void *conf) {
+    ngx_http_upstream_keepalive_srv_conf_t *kcf = conf;
+    if (!kcf->max_cached) return "works only with \"keepalive\"";
+    if (kcf->kp.max) return "duplicate";
+    ngx_str_t *args = cf->args->elts;
+    ngx_int_t n = ngx_atoi(args[1].data, args[1].len);
+    if (n == NGX_ERROR) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"%V\" must be number", &cmd->name, &args[1]); return NGX_CONF_ERROR; }
+    if (n <= 0) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"%V\" must be positive", &cmd->name, &args[1]); return NGX_CONF_ERROR; }
+    kcf->kp.max = (ngx_uint_t)n;
+    for (ngx_uint_t i = 2; i < cf->args->nelts; i++) {
+        if (args[i].len > sizeof("overflow=") - 1 && !ngx_strncasecmp(args[i].data, (u_char *)"overflow=", sizeof("overflow=") - 1)) {
+            args[i].len = args[i].len - (sizeof("overflow=") - 1);
+            args[i].data = &args[i].data[sizeof("overflow=") - 1];
+            static const ngx_conf_enum_t e[] = {
+                { ngx_string("ignore"), 0 },
+                { ngx_string("reject"), 1 },
+                { ngx_null_string, 0 }
+            };
+            ngx_uint_t j;
+            for (j = 0; e[j].name.len; j++) if (e[j].name.len == args[i].len && !ngx_strncasecmp(e[j].name.data, args[i].data, args[i].len)) { kcf->kp.reject = e[j].value; break; }
+            if (!e[j].name.len) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"overflow\" value \"%V\" must be \"ignore\" or \"reject\"", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            continue;
+        }
+        if (args[i].len > sizeof("timeout=") - 1 && !ngx_strncasecmp(args[i].data, (u_char *)"timeout=", sizeof("timeout=") - 1)) {
+            args[i].len = args[i].len - (sizeof("timeout=") - 1);
+            args[i].data = &args[i].data[sizeof("timeout=") - 1];
+            ngx_int_t n = ngx_parse_time(&args[i], 0);
+            if (n == NGX_ERROR) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"timeout\" value \"%V\" must be time", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            if (n <= 0) { ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: \"timeout\" value \"%V\" must be positive", &cmd->name, &args[i]); return NGX_CONF_ERROR; }
+            kcf->kp.timeout = (ngx_msec_t)n;
+            continue;
+        }
+        ngx_conf_log_error(NGX_LOG_EMERG, cf, 0, "\"%V\" directive error: invalid additional parameter \"%V\"", &cmd->name, &args[i]);
+        return NGX_CONF_ERROR;
+    }
+    return NGX_CONF_OK;
+}
+#endif
+
+
 static ngx_command_t  ngx_http_upstream_keepalive_commands[] = {
 
     { ngx_string("keepalive"),
@@ -100,6 +157,15 @@ static ngx_command_t  ngx_http_upstream_keepalive_commands[] = {
       NGX_HTTP_SRV_CONF_OFFSET,
       offsetof(ngx_http_upstream_keepalive_srv_conf_t, requests),
       NULL },
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+  { .name = ngx_string("queue"),
+    .type = NGX_HTTP_UPS_CONF|NGX_CONF_TAKE12|NGX_CONF_TAKE3,
+    .set = ngx_http_upstream_keepalive_queue_conf,
+    .conf = NGX_HTTP_SRV_CONF_OFFSET,
+    .offset = 0,
+    .post = NULL },
+#endif
 
       ngx_null_command
 };
@@ -177,8 +243,29 @@ ngx_http_upstream_init_keepalive(ngx_conf_t *cf,
         cached[i].conf = kcf;
     }
 
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    if (!kcf->kp.max) return NGX_OK;
+    ngx_conf_init_msec_value(kcf->kp.timeout, 60 * 1000);
+#endif
+
     return NGX_OK;
 }
+
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+static void ngx_http_upstream_keepalive_peer_data_cleanup(void *data) {
+    ngx_http_upstream_keepalive_peer_data_t *kp = data;
+    ngx_http_request_t *r = kp->request;
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, r->connection->log, 0, "%s", __func__);
+    if (!ngx_queue_empty(&kp->queue)) {
+        ngx_queue_remove(&kp->queue);
+        ngx_queue_init(&kp->queue);
+        ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
+        if (kcf->kp.size) kcf->kp.size--;
+    }
+    if (kp->timeout.timer_set) ngx_del_timer(&kp->timeout);
+}
+#endif
 
 
 static ngx_int_t
@@ -199,9 +286,21 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
         return NGX_ERROR;
     }
 
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    ngx_queue_init(&kp->queue);
+    ngx_pool_cleanup_t *cln = ngx_pool_cleanup_add(r->pool, 0);
+    if (!cln) { ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "!ngx_pool_cleanup_add"); return NGX_ERROR; }
+    cln->handler = ngx_http_upstream_keepalive_peer_data_cleanup;
+    cln->data = kp;
+#endif
+
     if (kcf->original_init_peer(r, us) != NGX_OK) {
         return NGX_ERROR;
     }
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    kp->request = r;
+#endif
 
     kp->conf = kcf;
     kp->upstream = r->upstream;
@@ -222,6 +321,21 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
 
     return NGX_OK;
 }
+
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+static void ngx_http_upstream_keepalive_peer_data_timeout_handler(ngx_event_t *ev) {
+    ngx_log_debug1(NGX_LOG_DEBUG_HTTP, ev->log, 0, "write = %s", ev->write ? "true" : "false");
+    ngx_http_upstream_keepalive_peer_data_t *kp = ev->data;
+    ngx_http_request_t *r = kp->request;
+    if (!ngx_queue_empty(&kp->queue)) ngx_queue_remove(&kp->queue);
+    ngx_queue_init(&kp->queue);
+    ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
+    if (kcf->kp.size) kcf->kp.size--;
+    if (!r->connection || r->connection->error) return;
+    ngx_http_upstream_next(r, r->upstream, NGX_HTTP_UPSTREAM_FT_TIMEOUT);
+}
+#endif
 
 
 static ngx_int_t
@@ -267,7 +381,28 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
         }
     }
 
-    if (kp->conf->reject) return NGX_BUSY;
+    ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    if (kcf->kp.max) {
+        if (kcf->kp.size < kcf->kp.max) {
+            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0, "kp = %p", kp);
+            ngx_queue_insert_tail(&kcf->kp.queue, &kp->queue);
+            kcf->kp.size++;
+            kp->timeout.handler = ngx_http_upstream_keepalive_peer_data_timeout_handler;
+            kp->timeout.log = pc->log;
+            kp->timeout.data = kp;
+            ngx_add_timer(&kp->timeout, kcf->kp.timeout);
+            ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0, "kp.size = %i", kcf->kp.size);
+            return NGX_YIELD;
+        } else if (kcf->kp.reject) {
+            ngx_log_error(NGX_LOG_WARN, pc->log, 0, "kp.size = %i", kcf->kp.size);
+            return NGX_BUSY;
+        }
+    } else
+#endif
+
+    if (kcf->reject) return NGX_BUSY;
 
     return NGX_OK;
 
@@ -397,6 +532,25 @@ ngx_http_upstream_free_keepalive_peer(ngx_peer_connection_t *pc, void *data,
 invalid:
 
     kp->original_free_peer(pc, kp->data, state);
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
+    while (!ngx_queue_empty(&kcf->kp.queue)) {
+        ngx_queue_t *queue = ngx_queue_head(&kcf->kp.queue);
+        ngx_queue_remove(queue);
+        ngx_queue_init(queue);
+        ngx_http_upstream_keepalive_peer_data_t *kp = ngx_queue_data(queue, ngx_http_upstream_keepalive_peer_data_t, queue);
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0, "kp = %p", kp);
+        if (kcf->kp.size) kcf->kp.size--;
+        if (kp->timeout.timer_set) ngx_del_timer(&kp->timeout);
+        ngx_http_request_t *r = kp->request;
+        if (!r->connection || r->connection->error) continue;
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0, "kp = %p", kp);
+        ngx_http_upstream_connect(r, r->upstream);
+        break;
+    }
+#endif
+
 }
 
 
@@ -518,6 +672,10 @@ ngx_http_upstream_keepalive_create_conf(ngx_conf_t *cf)
 
     conf->timeout = NGX_CONF_UNSET_MSEC;
     conf->requests = NGX_CONF_UNSET_UINT;
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
+    conf->kp.timeout = NGX_CONF_UNSET_MSEC;
+#endif
 
     return conf;
 }
