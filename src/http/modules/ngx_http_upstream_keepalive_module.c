@@ -14,7 +14,9 @@ typedef struct {
     ngx_uint_t                         max_cached;
     ngx_uint_t                         requests;
     ngx_msec_t                         timeout;
+
     ngx_flag_t                         reject;
+    ngx_uint_t                         size_cached;
 
     ngx_queue_t                        cache;
     ngx_queue_t                        free;
@@ -380,8 +382,8 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
     }
 
     ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
-    if (!ngx_queue_empty(&kcf->free)) {
-        ngx_log_debug0(NGX_LOG_DEBUG_HTTP, pc->log, 0, "free is not empty");
+    if (kcf->size_cached < kcf->max_cached) {
+        ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0, "size_cached = %i", kcf->size_cached);
 
 #if (T_NGX_HTTP_DYNAMIC_RESOLVE)
     } else if (kcf->kp.max) {
@@ -402,9 +404,11 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
 #endif
 
     } else if (kcf->reject) {
-        ngx_log_error(NGX_LOG_WARN, pc->log, 0, "reject");
+        ngx_log_error(NGX_LOG_WARN, pc->log, 0, "size_cached = %i", kcf->size_cached);
         return NGX_BUSY;
     }
+
+    kcf->size_cached++;
 
     return NGX_OK;
 
@@ -535,8 +539,10 @@ invalid:
 
     kp->original_free_peer(pc, kp->data, state);
 
-#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
     ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
+    if (kcf->size_cached) kcf->size_cached--;
+
+#if (T_NGX_HTTP_DYNAMIC_RESOLVE)
     while (!ngx_queue_empty(&kcf->kp.queue)) {
         ngx_queue_t *queue = ngx_queue_head(&kcf->kp.queue);
         ngx_queue_remove(queue);
