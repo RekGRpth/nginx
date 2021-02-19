@@ -282,7 +282,7 @@ ngx_http_upstream_init_keepalive_peer(ngx_http_request_t *r,
     kcf = ngx_http_conf_upstream_srv_conf(us,
                                           ngx_http_upstream_keepalive_module);
 
-    kp = ngx_palloc(r->pool, sizeof(ngx_http_upstream_keepalive_peer_data_t));
+    kp = ngx_pcalloc(r->pool, sizeof(ngx_http_upstream_keepalive_peer_data_t));
     if (kp == NULL) {
         return NGX_ERROR;
     }
