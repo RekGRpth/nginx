@@ -383,9 +383,10 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
     }
 
     ngx_http_upstream_keepalive_srv_conf_t *kcf = kp->conf;
+    if (!ngx_queue_empty(&kcf->free)) {
 
 #if (T_NGX_HTTP_DYNAMIC_RESOLVE)
-    if (kcf->kp.max) {
+    } else if (kcf->kp.max) {
         if (kcf->kp.size < kcf->kp.max) {
             ngx_log_debug1(NGX_LOG_DEBUG_HTTP, pc->log, 0, "kp = %p", kp);
             ngx_queue_insert_tail(&kcf->kp.queue, &kp->queue);
@@ -400,10 +401,9 @@ ngx_http_upstream_get_keepalive_peer(ngx_peer_connection_t *pc, void *data)
             ngx_log_error(NGX_LOG_WARN, pc->log, 0, "kp.size = %i", kcf->kp.size);
             return NGX_BUSY;
         }
-    } else
 #endif
 
-    if (kcf->reject) return NGX_BUSY;
+    } else if (kcf->reject) return NGX_BUSY;
 
     return NGX_OK;
 
