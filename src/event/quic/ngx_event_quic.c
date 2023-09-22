@@ -211,6 +211,8 @@ ngx_quic_run(ngx_connection_t *c, ngx_quic_conf_t *conf)
     qc = ngx_quic_get_connection(c);
 
     ngx_add_timer(c->read, qc->tp.max_idle_timeout);
+    ngx_add_timer(&qc->close, qc->conf->handshake_timeout);
+
     ngx_quic_connstate_dbg(c);
 
     c->read->handler = ngx_quic_input_handler;
@@ -418,7 +420,7 @@ ngx_quic_input_handler(ngx_event_t *rev)
     if (c->close) {
         c->close = 0;
 
-        if (!ngx_exiting) {
+        if (!ngx_exiting || !qc->streams.initialized) {
             qc->error = NGX_QUIC_ERR_NO_ERROR;
             qc->error_reason = "graceful shutdown";
             ngx_quic_close_connection(c, NGX_ERROR);
@@ -485,6 +487,10 @@ ngx_quic_close_connection(ngx_connection_t *c, ngx_int_t rc)
             ngx_quic_free_frames(c, &qc->send_ctx[i].sent);
         }
 
+        if (qc->close.timer_set) {
+            ngx_del_timer(&qc->close);
+        }
+
         if (rc == NGX_DONE) {
 
             /*
@@ -531,7 +537,7 @@ ngx_quic_close_connection(ngx_connection_t *c, ngx_int_t rc)
                 qc->error_level = ctx->level;
                 (void) ngx_quic_send_cc(c);
 
-                if (rc == NGX_OK && !qc->close.timer_set) {
+                if (rc == NGX_OK) {
                     ngx_add_timer(&qc->close, 3 * ngx_quic_pto(c, ctx));
                 }
             }
