@@ -335,6 +335,7 @@ ngx_quic_new_connection(ngx_connection_t *c, ngx_quic_conf_t *conf,
     qc->validated = pkt->validated;
 
     if (ngx_quic_open_sockets(c, qc, pkt) != NGX_OK) {
+        ngx_quic_keys_cleanup(qc->keys);
         return NULL;
     }
 
@@ -530,7 +531,7 @@ ngx_quic_close_connection(ngx_connection_t *c, ngx_int_t rc)
             for (i = 0; i < NGX_QUIC_SEND_CTX_LAST; i++) {
                 ctx = &qc->send_ctx[i];
 
-                if (!ngx_quic_keys_available(qc->keys, ctx->level)) {
+                if (!ngx_quic_keys_available(qc->keys, ctx->level, 1)) {
                     continue;
                 }
 
@@ -584,6 +585,8 @@ ngx_quic_close_connection(ngx_connection_t *c, ngx_int_t rc)
     }
 
     ngx_quic_close_sockets(c);
+
+    ngx_quic_keys_cleanup(qc->keys);
 
     ngx_log_debug0(NGX_LOG_DEBUG_EVENT, c->log, 0, "quic close completed");
 
@@ -959,7 +962,7 @@ ngx_quic_handle_payload(ngx_connection_t *c, ngx_quic_header_t *pkt)
 
     c->log->action = "decrypting packet";
 
-    if (!ngx_quic_keys_available(qc->keys, pkt->level)) {
+    if (!ngx_quic_keys_available(qc->keys, pkt->level, 0)) {
         ngx_log_error(NGX_LOG_INFO, c->log, 0,
                       "quic no %s keys, ignoring packet",
                       ngx_quic_level_name(pkt->level));
@@ -1082,7 +1085,9 @@ ngx_quic_discard_ctx(ngx_connection_t *c, enum ssl_encryption_level_t level)
 
     qc = ngx_quic_get_connection(c);
 
-    if (!ngx_quic_keys_available(qc->keys, level)) {
+    if (!ngx_quic_keys_available(qc->keys, level, 0)
+        && !ngx_quic_keys_available(qc->keys, level, 1))
+    {
         return;
     }
 
