@@ -53,21 +53,30 @@ typedef struct {
 #if (NGX_HAVE_INET6)
     unsigned                       ipv6only:1;
 #endif
+    unsigned                       deferred_accept:1;
     unsigned                       reuseport:1;
     unsigned                       so_keepalive:2;
     unsigned                       proxy_protocol:1;
+
+    int                            backlog;
+    int                            rcvbuf;
+    int                            sndbuf;
+    int                            type;
+#if (NGX_HAVE_SETFIB)
+    int                            setfib;
+#endif
+#if (NGX_HAVE_TCP_FASTOPEN)
+    int                            fastopen;
+#endif
 #if (NGX_HAVE_KEEPALIVE_TUNABLE)
     int                            tcp_keepidle;
     int                            tcp_keepintvl;
     int                            tcp_keepcnt;
 #endif
-    int                            backlog;
-    int                            rcvbuf;
-    int                            sndbuf;
-#if (NGX_HAVE_TCP_FASTOPEN)
-    int                            fastopen;
+
+#if (NGX_HAVE_DEFERRED_ACCEPT && defined SO_ACCEPTFILTER)
+    char                          *accept_filter;
 #endif
-    int                            type;
 } ngx_stream_listen_opt_t;
 
 

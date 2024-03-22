@@ -920,6 +920,9 @@ ngx_stream_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     lsopt.type = SOCK_STREAM;
     lsopt.rcvbuf = -1;
     lsopt.sndbuf = -1;
+#if (NGX_HAVE_SETFIB)
+    lsopt.setfib = -1;
+#endif
 #if (NGX_HAVE_TCP_FASTOPEN)
     lsopt.fastopen = -1;
 #endif
@@ -948,6 +951,22 @@ ngx_stream_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             lsopt.bind = 1;
             continue;
         }
+
+#if (NGX_HAVE_SETFIB)
+        if (ngx_strncmp(value[i].data, "setfib=", 7) == 0) {
+            lsopt.setfib = ngx_atoi(value[i].data + 7, value[i].len - 7);
+            lsopt.set = 1;
+            lsopt.bind = 1;
+
+            if (lsopt.setfib == NGX_ERROR) {
+                ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                                   "invalid setfib \"%V\"", &value[i]);
+                return NGX_CONF_ERROR;
+            }
+
+            continue;
+        }
+#endif
 
 #if (NGX_HAVE_TCP_FASTOPEN)
         if (ngx_strncmp(value[i].data, "fastopen=", 9) == 0) {
@@ -1015,6 +1034,33 @@ ngx_stream_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             continue;
         }
 
+        if (ngx_strncmp(value[i].data, "accept_filter=", 14) == 0) {
+#if (NGX_HAVE_DEFERRED_ACCEPT && defined SO_ACCEPTFILTER)
+            lsopt.accept_filter = (char *) &value[i].data[14];
+            lsopt.set = 1;
+            lsopt.bind = 1;
+#else
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "accept filters \"%V\" are not supported "
+                               "on this platform, ignored",
+                               &value[i]);
+#endif
+            continue;
+        }
+
+        if (ngx_strcmp(value[i].data, "deferred") == 0) {
+#if (NGX_HAVE_DEFERRED_ACCEPT && defined TCP_DEFER_ACCEPT)
+            lsopt.deferred_accept = 1;
+            lsopt.set = 1;
+            lsopt.bind = 1;
+#else
+            ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
+                               "the deferred accept is not supported "
+                               "on this platform, ignored");
+#endif
+            continue;
+        }
+
         if (ngx_strncmp(value[i].data, "ipv6only=o", 10) == 0) {
 #if (NGX_HAVE_INET6 && defined IPV6_V6ONLY)
             if (ngx_strcmp(&value[i].data[10], "n") == 0) {
@@ -1036,7 +1082,7 @@ ngx_stream_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
             continue;
 #else
             ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                               "bind ipv6only is not supported "
+                               "ipv6only is not supported "
                                "on this platform");
             return NGX_CONF_ERROR;
 #endif
@@ -1164,14 +1210,32 @@ ngx_stream_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         }
 
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,
-                           "the invalid \"%V\" parameter", &value[i]);
+                           "invalid parameter \"%V\"", &value[i]);
         return NGX_CONF_ERROR;
     }
 
     if (lsopt.type == SOCK_DGRAM) {
+#if (NGX_HAVE_TCP_FASTOPEN)
+        if (lsopt.fastopen != -1) {
+            return "\"fastopen\" parameter is incompatible with \"udp\"";
+        }
+#endif
+
         if (backlog) {
             return "\"backlog\" parameter is incompatible with \"udp\"";
         }
+
+#if (NGX_HAVE_DEFERRED_ACCEPT && defined SO_ACCEPTFILTER)
+        if (lsopt.accept_filter) {
+            return "\"accept_filter\" parameter is incompatible with \"udp\"";
+        }
+#endif
+
+#if (NGX_HAVE_DEFERRED_ACCEPT && defined TCP_DEFER_ACCEPT)
+        if (lsopt.deferred_accept) {
+            return "\"deferred\" parameter is incompatible with \"udp\"";
+        }
+#endif
 
 #if (NGX_STREAM_SSL)
         if (lsopt.ssl) {
@@ -1186,12 +1250,6 @@ ngx_stream_core_listen(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
         if (lsopt.proxy_protocol) {
             return "\"proxy_protocol\" parameter is incompatible with \"udp\"";
         }
-
-#if (NGX_HAVE_TCP_FASTOPEN)
-        if (lsopt.fastopen != -1) {
-            return "\"fastopen\" parameter is incompatible with \"udp\"";
-        }
-#endif
     }
 
     for (n = 0; n < u.naddrs; n++) {
