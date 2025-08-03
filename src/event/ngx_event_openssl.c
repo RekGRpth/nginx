@@ -387,6 +387,11 @@ ngx_ssl_create(ngx_ssl_t *ssl, ngx_uint_t protocols, void *data)
     SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_COMPRESSION);
 #endif
 
+#ifdef SSL_OP_NO_TX_CERTIFICATE_COMPRESSION
+    SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_TX_CERTIFICATE_COMPRESSION);
+    SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_RX_CERTIFICATE_COMPRESSION);
+#endif
+
 #ifdef SSL_OP_NO_ANTI_REPLAY
     SSL_CTX_set_options(ssl->ctx, SSL_OP_NO_ANTI_REPLAY);
 #endif
@@ -654,6 +659,36 @@ retry:
     }
 
     EVP_PKEY_free(pkey);
+
+    return NGX_OK;
+}
+
+
+ngx_int_t
+ngx_ssl_certificate_compression(ngx_conf_t *cf, ngx_ssl_t *ssl,
+    ngx_uint_t enable)
+{
+    if (!enable) {
+        return NGX_OK;
+    }
+
+#ifdef SSL_OP_NO_TX_CERTIFICATE_COMPRESSION
+
+    if (SSL_CTX_compress_certs(ssl->ctx, 0) == 0) {
+        ngx_ssl_error(NGX_LOG_WARN, ssl->log, 0,
+                      "SSL_CTX_compress_certs() failed, ignored");
+        return NGX_OK;
+    }
+
+    SSL_CTX_clear_options(ssl->ctx, SSL_OP_NO_TX_CERTIFICATE_COMPRESSION);
+
+#else
+
+    ngx_log_error(NGX_LOG_WARN, ssl->log, 0,
+                  "\"ssl_certificate_compression\" is not supported "
+                  "on this platform, ignored");
+
+#endif
 
     return NGX_OK;
 }
