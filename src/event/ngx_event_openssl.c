@@ -1171,7 +1171,7 @@ ngx_ssl_crl(ngx_conf_t *cf, ngx_ssl_t *ssl, ngx_str_t *crl)
 static ngx_inline ngx_int_t
 ngx_ssl_cert_already_in_hash(void)
 {
-#if !(OPENSSL_VERSION_NUMBER >= 0x1010009fL \
+#if !(OPENSSL_VERSION_NUMBER >= 0x1010009fL                                   \
       || LIBRESSL_VERSION_NUMBER >= 0x3050000fL)
     u_long  error;
 
@@ -3251,7 +3251,7 @@ ngx_ssl_write(ngx_connection_t *c, u_char *data, size_t size)
          * OpenSSL 1.1.1 fails to return SSL_ERROR_SYSCALL if an error
          * happens during SSL_write() after close_notify alert from the
          * peer, and returns SSL_ERROR_ZERO_RETURN instead,
-         * https://git.openssl.org/?p=openssl.git;a=commitdiff;h=8051ab2
+         * see https://github.com/openssl/openssl/commit/8051ab2
          */
 
         sslerr = SSL_ERROR_SYSCALL;
