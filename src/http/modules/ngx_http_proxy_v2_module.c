@@ -77,6 +77,7 @@ typedef struct {
     ngx_str_t                      value;
 
     u_char                        *field_end;
+    size_t                         header_limit;
     size_t                         field_length;
     size_t                         field_rest;
     u_char                         field_state;
@@ -160,6 +161,7 @@ static ngx_http_proxy_v2_ctx_t *
     ngx_http_proxy_v2_get_ctx(ngx_http_request_t *r);
 static ngx_int_t ngx_http_proxy_v2_get_connection_data(ngx_http_request_t *r,
     ngx_http_proxy_v2_ctx_t *ctx, ngx_peer_connection_t *pc);
+static ngx_inline ngx_int_t ngx_http_proxy_v2_cached(ngx_http_request_t *r);
 static void ngx_http_proxy_v2_cleanup(void *data);
 
 static void ngx_http_proxy_v2_abort_request(ngx_http_request_t *r);
@@ -1450,7 +1452,7 @@ ngx_http_proxy_v2_process_header(ngx_http_request_t *r)
 
         /* frame payload */
 
-        if (u->peer.connection) {
+        if (!ngx_http_proxy_v2_cached(r)) {
 
             if (ctx->type == NGX_HTTP_V2_RST_STREAM_FRAME) {
                 rc = ngx_http_proxy_v2_parse_rst_stream(r, ctx, b);
@@ -2535,6 +2537,7 @@ ngx_http_proxy_v2_parse_header(ngx_http_request_t *r,
         if (ctx->type == NGX_HTTP_V2_HEADERS_FRAME) {
             ctx->parsing_headers = 1;
             ctx->fragment_state = 0;
+            ctx->header_limit = r->upstream->conf->buffer_size;
 
             min = (ctx->flags & NGX_HTTP_V2_PADDED_FLAG ? 1 : 0)
                   + (ctx->flags & NGX_HTTP_V2_PRIORITY_FLAG ? 5 : 0);
@@ -2730,7 +2733,7 @@ ngx_http_proxy_v2_parse_fragment(ngx_http_request_t *r,
     ngx_http_proxy_v2_ctx_t *ctx, ngx_buf_t *b)
 {
     u_char      ch, *p, *last;
-    size_t      size;
+    size_t      len, size;
     ngx_uint_t  index, size_update;
     enum {
         sw_start = 0,
@@ -3070,6 +3073,14 @@ ngx_http_proxy_v2_parse_fragment(ngx_http_request_t *r,
             ctx->name.len = ctx->field_huffman ?
                             ctx->field_length * 8 / 5 : ctx->field_length;
 
+            if (ctx->name.len > ctx->header_limit) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "upstream sent too large http2 "
+                              "header name length: %uz",
+                              ctx->name.len);
+                return NGX_ERROR;
+            }
+
             ctx->name.data = ngx_pnalloc(r->pool, ctx->name.len + 1);
             if (ctx->name.data == NULL) {
                 return NGX_ERROR;
@@ -3179,6 +3190,14 @@ ngx_http_proxy_v2_parse_fragment(ngx_http_request_t *r,
             ctx->value.len = ctx->field_huffman ?
                              ctx->field_length * 8 / 5 : ctx->field_length;
 
+            if (ctx->value.len > ctx->header_limit) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                              "upstream sent too large http2 "
+                              "header value length: %uz",
+                              ctx->value.len);
+                return NGX_ERROR;
+            }
+
             ctx->value.data = ngx_pnalloc(r->pool, ctx->value.len + 1);
             if (ctx->value.data == NULL) {
                 return NGX_ERROR;
@@ -3271,6 +3290,16 @@ ngx_http_proxy_v2_parse_fragment(ngx_http_request_t *r,
                 return NGX_ERROR;
             }
         }
+
+        len = ctx->name.len + ctx->value.len;
+
+        if (len > ctx->header_limit) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "upstream sent too large http2 header");
+            return NGX_ERROR;
+        }
+
+        ctx->header_limit -= len;
 
         return NGX_OK;
     }
@@ -4113,9 +4142,7 @@ ngx_http_proxy_v2_get_connection_data(ngx_http_request_t *r,
     ngx_connection_t    *c;
     ngx_pool_cleanup_t  *cln;
 
-    c = pc->connection;
-
-    if (c == NULL) {
+    if (ngx_http_proxy_v2_cached(r)) {
         ctx->connection = ngx_palloc(r->pool, sizeof(ngx_http_proxy_v2_conn_t));
         if (ctx->connection == NULL) {
             return NGX_ERROR;
@@ -4125,6 +4152,8 @@ ngx_http_proxy_v2_get_connection_data(ngx_http_request_t *r,
 
         goto done;
     }
+
+    c = pc->connection;
 
     if (pc->cached) {
 
@@ -4178,6 +4207,17 @@ done:
     ctx->connection->last_stream_id = 1;
 
     return NGX_OK;
+}
+
+
+static ngx_inline ngx_int_t
+ngx_http_proxy_v2_cached(ngx_http_request_t *r)
+{
+#if (NGX_HTTP_CACHE)
+    return r->cached;
+#else
+    return 0;
+#endif
 }
 
 
