@@ -90,7 +90,13 @@ static const char *debug_levels[] = {
 };
 
 
-#if (NGX_HAVE_VARIADIC_MACROS)
+#if (NGX_HAVE_VARIADIC_MACROS && NGX_DEBUG)
+
+void
+ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
+    const char *file, int line, const char *func, const char *fmt, ...)
+
+#elif (NGX_HAVE_VARIADIC_MACROS)
 
 void
 ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
@@ -126,6 +132,10 @@ ngx_log_error_core(ngx_uint_t level, ngx_log_t *log, ngx_err_t err,
     if (log->connection) {
         p = ngx_slprintf(p, last, "*%uA ", log->connection);
     }
+
+#if (NGX_HAVE_VARIADIC_MACROS && NGX_DEBUG)
+    p = ngx_slprintf(p, last, "%s:%d:%s: ", file, line, func);
+#endif
 
     msg = p;
 
